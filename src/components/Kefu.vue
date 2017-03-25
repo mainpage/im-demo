@@ -5,14 +5,16 @@
   	</div>
     <div class="g-bd">
     	<ul class="msg-list">
-    		<li class="item" v-for="msg in msgList" :class="{msg_right: id == msg.from}">
-    			<div class="content">
+    		<li class="msg" v-for="msg in msgList" :class="{msg_right: id == msg.from}">
+    			<span class="name" v-if="id != msg.from">{{user.name}}</span>
+          <div class="content">
             <span>{{msg.content}}</span>
           </div>
+          <span class="name" v-if="id == msg.from">我</span>
     		</li>
     	</ul>
     	<div class="editor">
-    		<textarea v-model="input"></textarea>
+    		<textarea v-model="input" placeholder="请输入..."></textarea>
         <div class="action">
           <button class="send" @click="send()">发送</button>
         </div>
@@ -27,7 +29,7 @@ export default {
   data () {
     return {
     	id: 917,
-    	name: 'lj',
+    	name: '一位长者',
     	user: {},
     	input: '',
       	msgList: []
