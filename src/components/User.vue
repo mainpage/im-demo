@@ -6,7 +6,7 @@
     <div class="g-bd">
     	<ul class="msg-list">
     		<li class="msg" v-for="msg in msgList" :class="{msg_right: id == msg.from}">
-    			<span class="name" v-if="id != msg.from">{{kefu.name}}</span>
+    			<span class="name" v-if="id != msg.from">{{msg.kefu.name}}</span>
           <div class="content">
             <span>{{msg.content}}</span>
           </div>
@@ -14,7 +14,7 @@
     		</li>
     	</ul>
     	<div class="editor">
-    		<textarea v-model="input" placeholder="请输入..."></textarea>
+    		<textarea v-model="input" placeholder="请输入..." @keydown.enter.prevent @keyup.enter.prevent="send()"></textarea>
         <div class="action">
     		  <button class="send" @click="send()">发送</button>
         </div>
@@ -110,6 +110,7 @@
 </style>
 
 <script>
+import Rx from 'rx';
 export default {
   name: 'user',
   data () {
@@ -123,23 +124,47 @@ export default {
   },
   methods: {
   	initSocket() {
-  		this.socket = io.connect('localhost:4000');
-  		// bind event
-  		this.socket.on('session', (res) => {
-  			this.kefu = res.kefu;
-  		})
-  		this.socket.on('nokefu', () => {
-  			alert('nokefu');
-  		})
-  		this.socket.on('message', (msg) => {
-  			this.msgList.push(msg);
-  		})
-  		// emit
-  		this.socket.emit('newUser', {
-  			id: this.id,
-  			name: this.name
-  		})
-  	},
+      this.socket = io.connect('localhost:4000');
+      // bind event
+      this.socket.on('session', (res) => {
+        this.kefu = res.kefu;
+        this.onSession();
+      })
+      this.socket.on('nokefu', () => {
+        alert('nokefu');
+      })
+      // emit
+      this.socket.emit('newUser', {
+        id: this.id,
+        name: this.name
+      })
+    },
+    onSession() {
+      let me = this;
+      let httpMessage$ = Rx.Observable.from([{
+        from: 1123,
+        to: 917,
+        content: '这是一条历史消息'
+      }]);
+      let wsMessage$ = Rx.Observable.create((observer) => {
+        me.socket.on('message', (msg) => {
+          observer.next(msg);
+        })
+      });
+      let kefu$ = Rx.Observable.of(me.kefu);
+      let message$ = httpMessage$.merge(wsMessage$)
+      .combineLatest(kefu$)
+      .map(data => {
+        let [message, kefu] = data;
+        return Object.assign({}, message, {kefu: kefu});
+      });
+      kefu$.subscribe((kefu) => {
+        console.log(kefu)
+      })
+      message$.subscribe((message) => {
+        me.msgList.push(message);
+      })
+    },
   	send() {
   		if(!this.kefu.id || !this.input) return;
   		let msg = {
